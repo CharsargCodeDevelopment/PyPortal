@@ -77,6 +77,8 @@ uniform float time;
 
 uniform sampler3D texture3D;
 
+uniform float isObjectMatte[64];
+
 bool isObjectAt(vec3 point) {
     //if (point.y < -2){
     //    return true;
@@ -279,6 +281,9 @@ vec3 calculateObjectNormal(vec3 point,float ID) {
 }
 
 
+
+
+
 vec3 RotateOnX(vec3 Point,float angle){
     float rotatedY = (sin(angle) * Point.y)-(cos(angle) * Point.z);
     float rotatedZ = (cos(angle) * Point.y)+(sin(angle) * Point.z);
@@ -318,7 +323,8 @@ void main() {
 
     float max_distance = 50.0;
     max_distance = 10.0;
-    float step_size = 0.1;
+    float step_size = 0.01;
+    float traveled_distance = 0.0;
     vec3 current_pos = ray_origin;
     bool hit = false;
     //hit = true;
@@ -328,6 +334,7 @@ void main() {
     vec3 color_filter = vec3(1,1,1);
     float portal_distortion_multiplier = 1;
     for (float t = 0.0; t < max_distance; t += step_size) {
+        step_size = 0.01 + (t*0.01);
         current_pos += ray_dir * step_size;
         b += 1/(max_distance+step_size);
         for (int i = 0; i < light_count; i++) {
@@ -410,18 +417,32 @@ void main() {
         if (isObjectAt(current_pos)) {
             //b = 0;
             hit = true;
-            //t++;
-            //current_pos += ray_dir;
-            normal = calculateNormal(current_pos);
-            //normal = vec3(0,1,0);
-            vec3 I = (ray_dir/normalize(ray_dir));
-            vec3 N = (normal/normalize(normal));
-            ray_dir = I - 2 * dot(I,N) * N;
-            //ray_dir = vec3(0,1,0);
-            //ray_dir.y += perlinNoise(uv);
-            ray_dir = -normal;
-            //ray_dir.y = -(ray_dir.y);
-            //break;w
+
+            float matte1 = 1.0;
+            if (matte1 == 0){
+                //t++;
+                //current_pos += ray_dir;
+                normal = calculateNormal(current_pos);
+                //normal = vec3(0,1,0);
+                vec3 I = (ray_dir/normalize(ray_dir));
+                vec3 N = (normal/normalize(normal));
+                ray_dir = I - 2 * dot(I,N) * N;
+                //ray_dir = vec3(0,1,0);
+                //ray_dir.y += perlinNoise(uv);
+                ray_dir = -normal;
+                //ray_dir.y = -(ray_dir.y);
+                //break;w
+            }
+            else {
+                for (int i = 0; i < light_count; i++) {
+                vec3 light_position = light_positions[i];
+                vec3 light_normal = normalize(light_position-current_pos);
+                b = 0;
+                light_color += vec3(light_colors[i])*dot(light_normal,normal);
+        }
+        break;
+
+            }
         }
         bool Collision = false;
         for (int i=0;i<ObjectCount;i++){
@@ -429,6 +450,7 @@ void main() {
             float CurrentObjectID = ObjectIDList[i];
             int CurrentObjectMetaballCount = 0;
             float TotalDistance = 0;
+            
             for (int j = 0;j < ObjectMeshCount;j++){
                 
                 if (ObjectID[j] == CurrentObjectID){
@@ -447,18 +469,36 @@ void main() {
 
                 }
              if (TotalDistance > 2){
+                    float matte = isObjectMatte[j];
                     //return true;
                     hit = true;
+                    
                     normal = calculateObjectNormal(current_pos,CurrentObjectID);
                     vec3 I = (ray_dir/normalize(ray_dir));
                     vec3 N = (normal/normalize(normal));
+                    if (matte<0.5){
+                    
+                    
+                    
                     //ray_dir = I - 2 * dot(I,N) * N;
                     ray_dir = -normal;
                     //light_color = vec3(1,0,0);
                     //light_color = abs(normal);
                     //b = 0;
                     //b = 0;
-                    Collision = true;
+                    }else {
+                        Collision = true;
+                        for (int k = 0; k < light_count; k++) {
+                            vec3 light_position = light_positions[k];
+                            vec3 light_normal = normalize(light_position-current_pos);
+                            b = 0;
+                            light_color += vec3(light_colors[k])*-dot(light_normal,normal);
+                            //light_color = normal;
+                        }
+                    break;
+
+                    }
+                    
                     break;
 
                     }
@@ -471,7 +511,7 @@ void main() {
 
         }
         if (Collision == true){
-            //break;
+            break;
 
         }
         if (insideBox3D(current_pos,vec3(0,0,0),vec3(1,1,1))>0){
