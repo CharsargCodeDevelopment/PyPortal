@@ -1,4 +1,5 @@
 from spiffmodel import SpiffModel
+from spiffCollision import SpiffCollision
 import numpy as np
 import math
 import tqdm
@@ -78,7 +79,7 @@ def GenerateIntersectionPointsWithGuidance(ObjectIDList,ObjectIDS,ObjectMeshes,s
         
 
 
-def GenerateCollisionPoints(points,hitbox = [2,5,2]):
+def GenerateCollisionPoints(points,hitbox = [1,2,1],resFunc = lambda p : [int(x) for x in p ]):
 
     collision = set()
     #hitboxHalfSize = [x/2 for x in hitbox]
@@ -90,6 +91,7 @@ def GenerateCollisionPoints(points,hitbox = [2,5,2]):
                     for box_z in range(hitbox[2]):
                         hitbox_pos = [i-(j/2) for i,j in zip((box_x,box_y,box_z),hitbox)]
                         collision_point = [i+j for i,j in zip(hitbox_pos,point)]
+                        collision_point = resFunc(collision_point)
                         collision.add(tuple(collision_point))
                         #print(collision_point)
     return collision
@@ -130,6 +132,12 @@ if __name__ == '__main__':
     #points = GenerateIntersectionPointsWithGuidance(ObjectIDList,ObjectIDS,ObjectMeshes,gap = (1,1,1),guidance = points)
 
     collision = GenerateCollisionPoints(points)
+
+    colisionObjects = []
+    for x,y,z in collision:
+        colisionObjects.append({"type":"CollisionPoint","position":{"x":x,"y":y,"z":z},"radius":1})
+    with SpiffCollision.open("TestModel.spiffCollision",mode = "w") as file:
+        file.saveData(colisionObjects)
 
 
 
