@@ -1,0 +1,22 @@
+#TypeID|OtherData
+#Objects: TypeId = 0
+#0|ObjectId|x|y|z|radius
+
+#Lights: TypeId = 1
+#1|x|y|z|radius|r|g|b
+
+#portals: TypeId = 2
+#2|x|y|z|radius|otherPortal
+
+
+0|0|0|1|2|2
+0|0|4|1|2|2
+
+0|1|0|1|6|2
+0|1|4|1|6|2
+
+#1|0|10|5|2|255|127|0
+1|0|10|5|2|1|1|0
+
+2|10|5|5|2|1
+2|-10|5|5|2|0
