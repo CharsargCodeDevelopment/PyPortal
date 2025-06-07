@@ -79,6 +79,6 @@ class SpiffModel:
             # Return True to suppress exceptions, False to propagate
             return False
 
-
-with SpiffModel.open("TestModel.spiffModel") as file:
-    print(file.objects)
+if __name__ == '__main__':
+    with SpiffModel.open("TestModel.spiffModel") as file:
+        print(file.objects)
