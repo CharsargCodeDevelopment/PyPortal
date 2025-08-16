@@ -79,6 +79,60 @@ uniform sampler3D texture3D;
 
 uniform float isObjectMatte[64];
 
+uniform vec3 trianglePoints[64];
+uniform int triangleVertex1[64];
+uniform int triangleVertex2[64];
+uniform int triangleVertex3[64];
+uniform vec3 triangleNormals[64];
+uniform int triangleCount;
+
+
+float dot2( in vec3 v ) { return dot(v,v); }
+float udTriangle( vec3 p, vec3 a, vec3 b, vec3 c )
+{
+  vec3 ba = b - a; vec3 pa = p - a;
+  vec3 cb = c - b; vec3 pb = p - b;
+  vec3 ac = a - c; vec3 pc = p - c;
+  vec3 nor = cross( ba, ac );
+
+  return sqrt(
+    (sign(dot(cross(ba,nor),pa)) +
+     sign(dot(cross(cb,nor),pb)) +
+     sign(dot(cross(ac,nor),pc))<2.0)
+     ?
+     min( min(
+     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
+     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb) ),
+     dot2(ac*clamp(dot(ac,pc)/dot2(ac),0.0,1.0)-pc) )
+     :
+     dot(nor,pa)*dot(nor,pa)/dot2(nor) );
+}
+
+int IntersectingTriangle(vec3 p,float max_distance)
+{
+    for (int i = 0; i < triangleCount; i++){
+        int index1 = triangleVertex1[i];
+        int index2 = triangleVertex2[i];
+        int index3 = triangleVertex3[i];
+        vec3 a = trianglePoints[index1];
+        vec3 b = trianglePoints[index2];
+        vec3 c = trianglePoints[index3];
+        if (distance(a,p) < max_distance){
+        float d = udTriangle(p,a,b,c)- 0.05;
+        if (d < 0.01){
+            return i;
+
+        }}
+
+    }
+    return -1;
+
+}
+
+
+
+
+
 bool isObjectAt(vec3 point) {
     //if (point.y < -2){
     //    return true;
@@ -181,6 +235,8 @@ vec3 GetPortalRayOffset(vec3 point){
 
 
 }
+
+
 
 vec3 calculateNormal(vec3 point) {
     float eps = 0.01; // Small offset for finite difference calculation
@@ -389,6 +445,25 @@ void main() {
 
 
         }
+        int TriangleIntersectIndex = IntersectingTriangle(current_pos,max_distance);
+        
+        if (TriangleIntersectIndex > -1){
+            hit = true;
+            //light_color = vec3(255,154,0)/255;
+            //light_color *= dot(triangleNormals[TriangleIntersectIndex],normalize(vec3(1,1,1)));
+            vec3 normal = triangleNormals[TriangleIntersectIndex];
+            for (int k = 0; k < light_count; k++) {
+                vec3 light_position = light_positions[k];
+                vec3 light_normal = normalize(light_position-current_pos);
+                b = 0;
+                light_color += vec3(light_colors[k])*max(dot(light_normal,normal),0.01);
+                            //light_color = normal;
+                        }
+            
+            b = 0;
+            break;
+        }
+
         if (CollidingWithPortal(current_pos)){
             //break;
             //hit = true;

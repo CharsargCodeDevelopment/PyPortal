@@ -7,6 +7,7 @@ from PIL import Image
 import math
 import time
 import os
+import obj
 
 from spiffmodel import SpiffModel
 
@@ -476,6 +477,13 @@ def main(FRAGMENT_SHADER=""):
     object_count_location = glGetUniformLocation(shader, "ObjectCount")
     object_mesh_count_location = glGetUniformLocation(shader, "ObjectMeshCount")
 
+    triangle_points_location = glGetUniformLocation(shader, "trianglePoints")
+    triangle_vertex_1_location = glGetUniformLocation(shader, "triangleVertex1")
+    triangle_vertex_2_location = glGetUniformLocation(shader, "triangleVertex2")
+    triangle_vertex_3_location = glGetUniformLocation(shader, "triangleVertex3")
+    triangle_normals_location = glGetUniformLocation(shader, "triangleNormals")
+    triangle_count_location = glGetUniformLocation(shader, "triangleCount")
+
     time_location = glGetUniformLocation(shader, "time")
     
     camera_pos = np.array([0.0, 0.0, 0.0], dtype=np.float32)
@@ -527,6 +535,24 @@ def main(FRAGMENT_SHADER=""):
     ObjectIDS = np.array(ObjectIDS,dtype=np.float32)
     ObjectMeshes = np.array(ObjectMeshes,dtype=np.float32)
 
+
+
+    objModelData = obj.load_obj("doommap.obj")
+    print(objModelData["vertices"])
+    triangleVertexes = np.array(objModelData["vertices"],dtype=np.float32)
+    triangleNormals = np.array(objModelData["faceNormals"],dtype=np.float32)
+    triangleVertex1 = []
+    triangleVertex2 = []
+    triangleVertex3 = []
+    for triangle in objModelData["faces"]:
+        triangleVertex1.append(triangle[0]-1)
+        triangleVertex2.append(triangle[1]-1)
+        triangleVertex3.append(triangle[2]-1)
+        
+    triangleVertex1 = np.array(triangleVertex1,dtype=np.float32)
+    triangleVertex2 = np.array(triangleVertex2,dtype=np.float32)
+    triangleVertex3 = np.array(triangleVertex3,dtype=np.float32)
+
     PlayerVel = np.array([0.0,0.0,0.0],dtype=np.float32)
 
     gravity_strength = -9
@@ -549,11 +575,15 @@ def main(FRAGMENT_SHADER=""):
 
     FrameStart = time.time()
     EnablePhysics = True
+
+    Filtered_triangleVertex1 = []
+    Filtered_triangleVertex2 = []
+    Filtered_triangleVertex3 = []
     while running:
         DeltaTime = time.time()-FrameStart
         if DeltaTime != 0:
             pass
-            #print(round(1/DeltaTime))
+            print(round(1/DeltaTime))
         
         #print(DeltaTime)
         FrameStart = time.time()
@@ -732,7 +762,53 @@ def main(FRAGMENT_SHADER=""):
                     PlayerVel[1] = 0
 
 
+        Filtered_triangleVertex1 = []
+        Filtered_triangleVertex2 = []
+        Filtered_triangleVertex3 = []
+        Filtered_triangle_normals = []
 
+        #camera_pos[2]+= -math.sin(yaw)*0.1
+        #camera_pos[0]+= math.cos(yaw)*0.1
+
+        cull_dir = np.array([math.cos(yaw),0,-math.sin(yaw)])
+        Used_Triangle_Vertexes = [False for _ in range(len(triangleVertexes))]
+        for tvi1,tvi2,tvi3,triNormal in zip(triangleVertex1,triangleVertex2,triangleVertex3,triangleNormals):
+            #print(tvi1)
+            tv1 = triangleVertexes[int(tvi1)]
+            tv2 = triangleVertexes[int(tvi2)]
+            tv3 = triangleVertexes[int(tvi3)]
+            d1 = np.linalg.norm(np.array(tv1) - np.array(camera_pos))
+            d2 = np.linalg.norm(np.array(tv2) - np.array(camera_pos))
+            d3 = np.linalg.norm(np.array(tv3) - np.array(camera_pos))
+            if d1 < 10 or d2 < 10 or d3 < 10:
+                f1 = np.dot(np.array(tv1) - np.array(camera_pos),cull_dir)
+                f2 = np.dot(np.array(tv1) - np.array(camera_pos),cull_dir)
+                f3 = np.dot(np.array(tv1) - np.array(camera_pos),cull_dir)
+                if f1 > -1 or f2 > -1 or f3 > -1:
+                    Filtered_triangleVertex1.append(tvi1)
+                    Filtered_triangleVertex2.append(tvi2)
+                    Filtered_triangleVertex3.append(tvi3)
+                    Filtered_triangle_normals.append(triNormal)
+                    Used_Triangle_Vertexes[int(tvi1)] = True
+                    Used_Triangle_Vertexes[int(tvi2)] = True
+                    Used_Triangle_Vertexes[int(tvi3)] = True
+        Filtered_triangleVertex1 = np.array(Filtered_triangleVertex1,dtype = np.float32)
+        Filtered_triangleVertex2 = np.array(Filtered_triangleVertex2,dtype = np.float32)
+        Filtered_triangleVertex3 = np.array(Filtered_triangleVertex3,dtype = np.float32)
+        Filtered_triangle_normals = np.array(Filtered_triangle_normals,dtype = np.float32)
+
+        """
+
+        filtered_triangleVertexes = []
+
+        for triangleVertex,used in zip(triangleVertexes,Used_Triangle_Vertexes):
+            if used:
+                filtered_triangleVertexes.append(triangleVertex)
+        filtered_triangleVertexes = np.array(filtered_triangleVertexes,dtype = np.float32)
+        """
+
+        #print(len(triangleVertexes))
+            
         
 
 
@@ -771,6 +847,24 @@ def main(FRAGMENT_SHADER=""):
 
             glUniform1i(object_count_location, len(ObjectIDList))
             glUniform1i(object_mesh_count_location, len(ObjectIDS))
+
+            triangle_points_location
+            #filtered_triangleVertexes
+            glUniform3fv(triangle_points_location, len(triangleVertexes),triangleVertexes.flatten())
+            #glUniform3fv(triangle_points_location, len(filtered_triangleVertexes),filtered_triangleVertexes.flatten())
+            #glUniform1i(triangle_count_location, len(triangleVertex1))
+            #glUniform1iv(triangle_vertex_1_location, len(triangleVertex1), triangleVertex1.flatten())
+            #glUniform1iv(triangle_vertex_2_location, len(triangleVertex2), triangleVertex2.flatten())
+            #glUniform1iv(triangle_vertex_3_location, len(triangleVertex3), triangleVertex3.flatten())
+            glUniform1i(triangle_count_location, len(Filtered_triangleVertex1))
+            glUniform1iv(triangle_vertex_1_location, len(Filtered_triangleVertex1), Filtered_triangleVertex1.flatten())
+            glUniform1iv(triangle_vertex_2_location, len(Filtered_triangleVertex2), Filtered_triangleVertex2.flatten())
+            glUniform1iv(triangle_vertex_3_location, len(Filtered_triangleVertex3), Filtered_triangleVertex3.flatten())
+            triangle_normals_location
+            #Filtered_triangle_normals
+            #glUniform3fv(triangle_normals_location, len(triangleNormals),triangleNormals.flatten())
+            glUniform3fv(triangle_normals_location, len(Filtered_triangle_normals),Filtered_triangle_normals.flatten())
+            
 
             glActiveTexture(GL_TEXTURE0)
             glBindTexture(GL_TEXTURE_3D, textureID)
