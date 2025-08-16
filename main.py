@@ -11,6 +11,8 @@ import obj
 
 from spiffmodel import SpiffModel
 
+import spiffPhysicsEngine as SPE
+
 os.environ["SDL_VIDEO_X11_FORCE_EGL"] = "1"
 # Window dimensions
 WINDOW_WIDTH = 800
@@ -752,7 +754,24 @@ def main(FRAGMENT_SHADER=""):
 
             PlayerVel[1] += gravity_strength*DeltaTime
             #camera_pos[1] += PlayerVel[1]*DeltaTime
-            camera_pos += PlayerVel*DeltaTime
+
+            camera_pos[1] -=1
+
+            if SPE.PointIsColliding(camera_pos+PlayerVel*DeltaTime):
+                velocityLength = math.sqrt(sum((PlayerVel*DeltaTime)**2))
+                if velocityLength > 0:
+                    
+                    velocitySegments = int(velocityLength)
+                    velocityParts = (PlayerVel*DeltaTime)/velocitySegments
+                    for vPart in range(velocitySegments):
+                        if SPE.PointIsColliding(camera_pos+(velocityParts*vPart)):
+                            camera_pos += (velocityParts*vPart)
+                            
+                print("Collision")
+            else:
+                camera_pos += PlayerVel*DeltaTime
+
+            camera_pos[1] += 1
             #print(projVel)
 
             
